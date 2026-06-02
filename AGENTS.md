@@ -8,12 +8,16 @@ This file provides guidance to agents working with code in this repository.
 
 ## MCP Servers
 
-### julia-mcp
 
-Load the julia-mcp MCP server to enable:
-- Running Julia code within an agentic environment
-- Access to Julia REPL with persistent session state
-- Package management capabilities
-- Interactive development and testing
+### julia-mcp (REQUIRED for Julia work)
 
-The julia-mcp server should be configured in agentic settings for efficient Julia development.
+Always use julia-mcp for executing Julia code. Do NOT use Bash `julia` commands.
+
+julia-mcp provides:
+- Persistent REPL session state across multiple code evaluations
+- Efficient package management and compilation caching
+- Better integration with the development environment
+- Access to interactive Julia development
+
+Use `mcp__julia__julia_eval` to run Julia code. This maintains state, avoids
+repeated compilation, and is the standard Julia development tool for this project.
