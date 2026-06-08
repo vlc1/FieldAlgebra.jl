@@ -1,9 +1,9 @@
-using StencilAlgebra
+using FieldAlgebra
 using ScalarAlgebra
 using LinearAlgebra
 using Test
 
-@testset "StencilAlgebra" begin
+@testset "FieldAlgebra" begin
 
     @testset "AbstractField eltype" begin
         @test eltype(AbstractField{Float64}) === Float64

@@ -1,11 +1,11 @@
-module StencilAlgebra
+module FieldAlgebra
 
 using LinearAlgebra,
       StaticArrays,
       ScalarAlgebra,
       AlgebraCore
 
-# The algebra verbs are owned by AlgebraCore; StencilAlgebra extends them.
+# The algebra verbs are owned by AlgebraCore; FieldAlgebra extends them.
 import AlgebraCore: simplify
 
 using ScalarAlgebra: _assert_concrete,

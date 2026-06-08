@@ -1,5 +1,5 @@
-name = "StencilAlgebra"
-uuid = "ca087e3a-ae0c-4219-a641-d468d695aa24"
+name = "FieldAlgebra"
+uuid = "37466282-f9df-4509-9b24-142db341d2b3"
 version = "0.1.0"
 authors = ["Vincent Le Chenadec <vincentlechenadec@gmail.com>"]
 

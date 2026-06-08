@@ -4,7 +4,7 @@ This file provides guidance to agents working with code in this repository.
 
 ## Project Overview
 
-**StencilAlgebra** is a Julia package for algebraic operations on stencil patterns. The project is in early development stages.
+**FieldAlgebra** is a Julia package for algebraic operations on stencil patterns. The project is in early development stages.
 
 ## MCP Servers
 
