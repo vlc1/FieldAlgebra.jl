@@ -33,6 +33,7 @@ include("static.jl")
 include("fields.jl")
 include("stencils.jl")
 include("operators.jl")
+include("simplify.jl")
 include("display.jl")
 
 end # module

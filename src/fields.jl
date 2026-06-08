@@ -144,6 +144,3 @@ Shifted(shift::Shift, term::AbstractField{T}) where {T} =
 asfield(fd::AbstractField) = fd
 asfield(sc::AbstractScalar) = Fill(sc)
 asfield(x) = Fill(ScalarConst(x))
-
-# for now
-simplify(fd::AbstractField) = fd

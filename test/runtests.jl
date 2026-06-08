@@ -1,5 +1,6 @@
 using FieldAlgebra
 using ScalarAlgebra
+using AlgebraCore
 using LinearAlgebra
 using Test
 
@@ -466,6 +467,48 @@ using Test
         # Nested: parent unwraps one level
         s_nested = Shifted(ê₂, Shifted(ê₁, u))
         @test parent(s_nested) === u
+    end
+
+    @testset "Field simplify" begin
+        @field u
+        @field v
+
+        # fallback: a bare leaf is unchanged
+        @test simplify(u) === u
+
+        # additive zero identity (both sides)
+        fz = FieldZero(Float64)
+        @test simplify(u + fz) === u
+        @test simplify(fz + u) === u
+
+        # Fill constant-folding delegates to scalar simplify
+        folded = simplify(Fill(ScalarConst(2.0)) + Fill(ScalarConst(3.0)))
+        @test folded isa Fill
+        @test folded.val === ScalarConst(5.0)
+
+        # multiplication by zero absorbs (FieldCall(*) from broadcast)
+        @test simplify(u .* fz) isa FieldZero
+        @test simplify(fz .* u) isa FieldZero
+
+        # double negation
+        @test simplify(-(-u)) === u
+
+        # subtraction zero identities
+        @test simplify(u - fz) === u
+
+        # Shifted distributes over FieldCall: (u + v)[ê₁] → u[ê₁] + v[ê₁]
+        dist = simplify((u + v)[ê₁])
+        @test dist isa FieldCall
+        @test dist.fn === (+)
+        @test dist.args[1] === Shifted(ê₁, u)
+        @test dist.args[2] === Shifted(ê₁, v)
+
+        # Shifted of a Fill collapses (spatially invariant)
+        @test simplify(Fill(2.0)[ê₁]) isa Fill
+
+        # idempotence on a compound expression
+        x = (u + fz) .* (v - fz)
+        @test simplify(simplify(x)) === simplify(x)
     end
 
 end
