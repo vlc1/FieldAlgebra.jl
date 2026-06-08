@@ -15,77 +15,47 @@ _simplify_args((x, xs...)::Tuple{AbstractField, Vararg}) =
 
 simplify(fd::FieldCall) = _simplify_call(fd.fn, _simplify_args(fd.args))
 
-# additive identities
+# Spatially-invariant operands fold via scalar `simplify`, for any fn. Because
+# FieldZero <: Fill, this subsumes the all-invariant cases for every op; the
+# per-op rules below only add the FieldZero shortcuts and the disambiguators
+# that break dispatch ties with these generic methods.
+_simplify_call(fn, (a,)::Tuple{Fill}) = Fill(simplify(fn(a.val)))
+_simplify_call(fn, (a, b)::Tuple{Fill, Fill}) = Fill(simplify(fn(a.val, b.val)))
+
+# Generic fallback: reconstruct with already-simplified args. Covers /,\,^ (no
+# field identity beyond Fill-folding), unary math fns, and any other callable.
+_simplify_call(fn, args) = FieldCall(fn, args)
+
+# additive identities: x + 0 → x, 0 + x → x
 _simplify_call(::typeof(+), args) = _simplify_add(args)
-
-# both invariant → fold via scalar `simplify`
-_simplify_add((a, b)::Tuple{Fill, Fill}) = Fill(simplify(a.val + b.val))
-
-# zero identity against a non-invariant field
+_simplify_call(::typeof(+), (a,)::Tuple{Fill}) = Fill(simplify(a.val))
+_simplify_call(::typeof(+), (a, b)::Tuple{Fill, Fill}) = Fill(simplify(a.val + b.val))
 _simplify_add((a, _)::Tuple{AbstractField, FieldZero}) = a
 _simplify_add((_, b)::Tuple{FieldZero, AbstractField}) = b
-
-# tiebreakers (FieldZero <: Fill, so these corners are otherwise ambiguous)
-_simplify_add((a, b)::Tuple{Fill, FieldZero}) = Fill(simplify(a.val + b.val))
-_simplify_add((a, b)::Tuple{FieldZero, Fill}) = Fill(simplify(a.val + b.val))
-_simplify_add((a, b)::Tuple{FieldZero, FieldZero}) = Fill(simplify(a.val + b.val))
-
-# fallback: rebuild the node directly (operators throw for two-field *,/,\,^)
+_simplify_add((a, _)::Tuple{FieldZero, FieldZero}) = a
 _simplify_add(args) = FieldCall(+, args)
 
-# subtractive identities
+# subtractive identities: -0 → 0, -(-a) → a, a - 0 → a, 0 - b → -b
 _simplify_call(::typeof(-), args) = _simplify_sub(args)
-
-# unary
-_simplify_sub((a,)::Tuple{FieldZero}) = a                       # -0 → 0
-_simplify_sub((a,)::Tuple{Fill}) = Fill(simplify(-a.val))
-_simplify_sub((a,)::Tuple{FieldCall{typeof(-), <:Tuple{AbstractField}}}) =
-    only(a.args)                                                # -(-a) → a
-_simplify_sub((a,)::Tuple{AbstractField}) = FieldCall(-, (a,))
-
-# binary
-_simplify_sub((a, b)::Tuple{Fill, Fill}) = Fill(simplify(a.val - b.val))
-_simplify_sub((a, _)::Tuple{AbstractField, FieldZero}) = a      # a - 0 → a
-_simplify_sub((_, b)::Tuple{FieldZero, AbstractField}) = FieldCall(-, (b,))  # 0 - b → -b
-_simplify_sub((a, b)::Tuple{Fill, FieldZero}) = Fill(simplify(a.val - b.val))
-_simplify_sub((a, b)::Tuple{FieldZero, Fill}) = Fill(simplify(a.val - b.val))
-_simplify_sub((a, b)::Tuple{FieldZero, FieldZero}) = Fill(simplify(a.val - b.val))
+_simplify_call(::typeof(-), (a,)::Tuple{Fill}) = Fill(simplify(-a.val))
+_simplify_call(::typeof(-), (a, b)::Tuple{Fill, Fill}) = Fill(simplify(a.val - b.val))
+_simplify_sub((a,)::Tuple{FieldCall{typeof(-), <:Tuple{AbstractField}}}) = only(a.args)
+_simplify_sub((a, _)::Tuple{AbstractField, FieldZero}) = a
+_simplify_sub((_, b)::Tuple{FieldZero, AbstractField}) = FieldCall(-, (b,))
+_simplify_sub((a, _)::Tuple{FieldZero, FieldZero}) = a
 _simplify_sub(args) = FieldCall(-, args)
 
-# multiplicative identities (FieldCall(*) arises from broadcast `.*` or field*scalar)
+# multiplicative identities: x * 0 → 0 (absorb)
 _simplify_call(::typeof(*), args) = _simplify_mul(args)
-
-_simplify_mul((a, b)::Tuple{Fill, Fill}) = Fill(simplify(a.val * b.val))
-
-# multiplication by zero absorbs (mirrors scalar mul-by-zero)
+_simplify_call(::typeof(*), (a,)::Tuple{Fill}) = Fill(simplify(a.val))
+_simplify_call(::typeof(*), (a, b)::Tuple{Fill, Fill}) = Fill(simplify(a.val * b.val))
 _simplify_mul((a, b)::Tuple{AbstractField, FieldZero}) =
     FieldZero(Base.promote_op(*, eltype(a), eltype(b)))
 _simplify_mul((a, b)::Tuple{FieldZero, AbstractField}) =
     FieldZero(Base.promote_op(*, eltype(a), eltype(b)))
-_simplify_mul((a, b)::Tuple{Fill, FieldZero}) =
-    FieldZero(Base.promote_op(*, eltype(a), eltype(b)))
-_simplify_mul((a, b)::Tuple{FieldZero, Fill}) =
-    FieldZero(Base.promote_op(*, eltype(a), eltype(b)))
 _simplify_mul((a, b)::Tuple{FieldZero, FieldZero}) =
     FieldZero(Base.promote_op(*, eltype(a), eltype(b)))
-
 _simplify_mul(args) = FieldCall(*, args)
-
-# division / exponentiation: fold invariant operands only (no field one-identity)
-_simplify_call(::typeof(/), args) = _simplify_rdiv(args)
-_simplify_rdiv((a, b)::Tuple{Fill, Fill}) = Fill(simplify(a.val / b.val))
-_simplify_rdiv(args) = FieldCall(/, args)
-
-_simplify_call(::typeof(\), args) = _simplify_ldiv(args)
-_simplify_ldiv((a, b)::Tuple{Fill, Fill}) = Fill(simplify(a.val \ b.val))
-_simplify_ldiv(args) = FieldCall(\, args)
-
-_simplify_call(::typeof(^), args) = _simplify_pow(args)
-_simplify_pow((a, b)::Tuple{Fill, Fill}) = Fill(simplify(a.val ^ b.val))
-_simplify_pow(args) = FieldCall(^, args)
-
-# Generic fallback: reconstruct with already-simplified args (unary math fns, etc.)
-_simplify_call(fn, args) = FieldCall(fn, args)
 
 # Shifted: simplify the term, then distribute the shift over a FieldCall. The
 # field analogue of scalar `_simplify_ref` / `_simplify_ref_call`. Zero-shift,
