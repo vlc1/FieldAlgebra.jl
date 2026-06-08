@@ -109,6 +109,12 @@ function FieldCall(fn::F, args::A) where {F, A<:Tuple{Vararg{AbstractField}}}
     FieldCall{F, A, T}(fn, args)
 end
 
+function FieldCall(fn::Type{SA}, args::A) where {
+        SA <: StaticArray, A <: Tuple{Vararg{AbstractField}}}
+    SA_r = _scalar_sa_type(SA, args)
+    FieldCall{Type{SA_r}, A, SA_r}(SA_r, args)
+end
+
 """
     Shifted(shift::Shift, term::AbstractField)
 

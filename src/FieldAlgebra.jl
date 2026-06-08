@@ -12,7 +12,7 @@ using ScalarAlgebra: _assert_concrete,
                      _assert_bool_shape,
                      _to_bool_shape,
                      _unity_space,
-#                     _value_space,
+                     _scalar_sa_type,
                      asscalar
 
 export Offset,
